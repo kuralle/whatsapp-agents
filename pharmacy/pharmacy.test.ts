@@ -29,6 +29,15 @@ import {
 
 const stubModel = {} as LanguageModel;
 
+// A `decide` node's `decide` callback is typed optional on the union; narrow it for
+// the unit assertions below without an unchecked non-null assertion.
+function requireDecide<F extends (...args: never[]) => unknown>(node: { decide?: F }): F {
+  if (!node.decide) {
+    throw new Error('expected a decide node with a decide() function');
+  }
+  return node.decide;
+}
+
 type SessionWithRuns = Session & {
   durableRuns?: Record<string, { runState: RunState; steps: unknown[] }>;
 };
@@ -265,7 +274,7 @@ describe('pharmacy_example', () => {
     const state: Record<string, unknown> = { rxId: '', patientId: 'p1' };
 
     const transition = await Promise.resolve(
-      chooseRx.decide({ choice: 'rx-lis' }, state),
+      requireDecide(chooseRx)({ choice: 'rx-lis' }, state),
     );
     const target =
       typeof transition === 'object' && transition !== null && 'id' in transition
@@ -309,7 +318,7 @@ describe('pharmacy_example', () => {
     const state: Record<string, unknown> = {};
 
     const transition = await Promise.resolve(
-      fulfilment.decide({ choice: 'delivery' }, state),
+      requireDecide(fulfilment)({ choice: 'delivery' }, state),
     );
     const target =
       typeof transition === 'object' && transition !== null && 'id' in transition

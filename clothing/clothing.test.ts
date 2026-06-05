@@ -7,6 +7,7 @@ import {
   type RunState,
   type Session,
 } from '@kuralle-agents/core';
+import { consumePendingUserInput } from '@kuralle-agents/core/runtime';
 import type {
   OutboundSink,
   OutboundTemplate,
@@ -40,6 +41,15 @@ type SessionWithRuns = Session & {
 function persistedRunState(session: Session | null, sessionId: string): RunState | undefined {
   const runs = (session as SessionWithRuns | null)?.durableRuns;
   return runs?.[sessionId]?.runState;
+}
+
+// A `decide` node's `decide` callback is typed optional on the union; narrow it for
+// the unit assertions below without an unchecked non-null assertion.
+function requireDecide<F extends (...args: never[]) => unknown>(node: { decide?: F }): F {
+  if (!node.decide) {
+    throw new Error('expected a decide node with a decide() function');
+  }
+  return node.decide;
 }
 
 function createRecordingSink(): OutboundSink & {
@@ -92,62 +102,24 @@ function createRecordingPlatform(
   };
 }
 
-function clothingDriver(overrides?: {
-  productChoice?: string;
-  sizeChoice?: string;
-  colorChoice?: string;
-  cartChoice?: string;
-  addressPayload?: Record<string, unknown>;
-}): ChannelDriver {
-  let cartChoiceConsumed = false;
-  return {
-    async runAgentTurn(resolved) {
-      if (resolved.node.id.startsWith('address')) {
-        const payload =
-          overrides?.addressPayload ?? {
-            name: 'Jane Doe',
-            street: '22 Main St',
-            city: 'Austin',
-            zip: '78701',
-          };
-        return {
-          text: '',
-          toolResults: [
-            {
-              name: 'submit_address_data',
-              args: payload,
-              result: payload,
-            },
-          ],
-        };
-      }
-      return { text: `[${resolved.node.id}]`, toolResults: [] };
-    },
-    async awaitUser() {
-      return { type: 'message', input: '' };
-    },
-    async runStructured(node) {
-      if (node.id === 'pickProduct') {
-        return { choice: overrides?.productChoice ?? '' };
-      }
-      if (node.id === 'pickSize') {
-        return { choice: overrides?.sizeChoice ?? '' };
-      }
-      if (node.id === 'pickColor') {
-        return { choice: overrides?.colorChoice ?? '' };
-      }
-      if (node.id === 'cartReview' && overrides?.cartChoice && !cartChoiceConsumed) {
-        cartChoiceConsumed = true;
-        return { choice: overrides.cartChoice };
-      }
-      return { choice: '' };
-    },
-  };
-}
+const DEFAULT_ADDRESS = {
+  name: 'Jane Doe',
+  street: '22 Main St',
+  city: 'Austin',
+  zip: '78701',
+};
 
+// One scripted answer per interactive node visit. Each `withChoices` decide consumes
+// exactly one inbound user message, so a script entry maps to one runtime.run turn.
+type ShopAnswer = { decide: string; choice: string } | { address: Record<string, unknown> };
+
+// Drives the clothing flow turn-by-turn from an ordered script. Critically, `awaitUser`
+// consumes the session's pending input — without that the engine never clears the
+// pending flag, so later interactive decides re-dispatch instead of parking and the
+// turn loops forever.
 async function runShopSession(
   sessionId: string,
-  turns: Array<{ driver: ChannelDriver; input?: string }>,
+  script: ShopAnswer[],
 ): Promise<RunState | undefined> {
   const { agent, flow } = buildClothingBot(stubModel);
   const sessionStore = new MemoryStore();
@@ -159,20 +131,63 @@ async function runShopSession(
     hostSelect: async () => ({ kind: 'enterFlow' as const, flow }),
   });
 
-  for (const turn of turns) {
-    const handle = runtime.run({
-      sessionId,
-      input: turn.input ?? '',
-      driver: turn.driver,
-    });
+  let ptr = 0;
+  const nextAddress = (): Record<string, unknown> => {
+    const head = script[ptr];
+    if (head && 'address' in head) {
+      ptr += 1;
+      return head.address;
+    }
+    return DEFAULT_ADDRESS;
+  };
+  const extractAddress = () => {
+    const payload = nextAddress();
+    return {
+      text: '',
+      toolResults: [{ name: 'submit_address_data', args: payload, result: payload }],
+    };
+  };
+  const driver: ChannelDriver = {
+    async runAgentTurn(resolved) {
+      if (resolved.node.id.startsWith('address')) {
+        return extractAddress();
+      }
+      return { text: `[${resolved.node.id}]`, toolResults: [] };
+    },
+    async runExtraction(resolved) {
+      if (resolved.node.id.startsWith('address')) {
+        return extractAddress();
+      }
+      return { text: '', toolResults: [] };
+    },
+    async awaitUser(ctx) {
+      return { type: 'message', input: consumePendingUserInput(ctx.session) };
+    },
+    async runStructured(node) {
+      const head = script[ptr];
+      if (head && 'decide' in head && head.decide === node.id) {
+        ptr += 1;
+        return { choice: head.choice };
+      }
+      return { choice: '' };
+    },
+  };
+
+  for (let turn = 0; turn < 20; turn += 1) {
+    const handle = runtime.run({ sessionId, input: `turn-${turn}`, driver });
     for await (const _ of handle.events) {
       /* drain */
     }
     await handle;
+    const run = persistedRunState(await sessionStore.get(sessionId), sessionId);
+    if ((run?.state.__completedFlows as string[] | undefined)?.includes('shop')) {
+      return run;
+    }
+    if (ptr >= script.length) {
+      return run;
+    }
   }
-
-  const session = await sessionStore.get(sessionId);
-  return persistedRunState(session, sessionId);
+  return persistedRunState(await sessionStore.get(sessionId), sessionId);
 }
 
 describe('clothing_example', () => {
@@ -180,14 +195,14 @@ describe('clothing_example', () => {
     const { pickProduct, pickSize, pickColor } = buildClothingBot(stubModel);
     const state: Record<string, unknown> = {};
 
-    await Promise.resolve(pickProduct.decide({ choice: 'hoodie' }, state));
+    await Promise.resolve(requireDecide(pickProduct)({ choice: 'hoodie' }, state));
     expect(state.productId).toBe('hoodie');
     expect(state.productName).toBe('Zip Hoodie');
 
-    await Promise.resolve(pickSize.decide({ choice: 'm' }, state));
+    await Promise.resolve(requireDecide(pickSize)({ choice: 'm' }, state));
     expect(state.size).toBe('m');
 
-    const transition = await Promise.resolve(pickColor.decide({ choice: 'navy' }, state));
+    const transition = await Promise.resolve(requireDecide(pickColor)({ choice: 'navy' }, state));
     expect(state.color).toBe('navy');
     expect(transition).toBeDefined();
 
@@ -222,25 +237,14 @@ describe('clothing_example', () => {
     const sessionId = 'cart-sess';
 
     const run = await runShopSession(sessionId, [
-      {
-        input: 'shop',
-        driver: clothingDriver({
-          productChoice: 'tee',
-          sizeChoice: 'm',
-          colorChoice: 'black',
-        }),
-      },
-      {
-        driver: clothingDriver({
-          cartChoice: 'more',
-          productChoice: 'jeans',
-          sizeChoice: 'l',
-          colorChoice: 'navy',
-        }),
-      },
-      {
-        driver: clothingDriver({ cartChoice: 'remove' }),
-      },
+      { decide: 'pickProduct', choice: 'tee' },
+      { decide: 'pickSize', choice: 'm' },
+      { decide: 'pickColor', choice: 'black' },
+      { decide: 'cartReview', choice: 'more' },
+      { decide: 'pickProduct', choice: 'jeans' },
+      { decide: 'pickSize', choice: 'l' },
+      { decide: 'pickColor', choice: 'navy' },
+      { decide: 'cartReview', choice: 'remove' },
     ]);
     expect((run?.state.cart as unknown[] | undefined)?.length).toBe(1);
   });
@@ -267,24 +271,17 @@ describe('clothing_example', () => {
   it('checkout_extracts_address_into_state', async () => {
     const sessionId = 'addr-sess';
     const run = await runShopSession(sessionId, [
+      { decide: 'pickProduct', choice: 'jeans' },
+      { decide: 'pickSize', choice: 'l' },
+      { decide: 'pickColor', choice: 'black' },
+      { decide: 'cartReview', choice: 'checkout' },
       {
-        input: 'shop',
-        driver: clothingDriver({
-          productChoice: 'jeans',
-          sizeChoice: 'l',
-          colorChoice: 'black',
-        }),
-      },
-      {
-        driver: clothingDriver({
-          cartChoice: 'checkout',
-          addressPayload: {
-            name: 'Jane Doe',
-            street: '22 Main St',
-            city: 'Austin',
-            zip: '78701',
-          },
-        }),
+        address: {
+          name: 'Jane Doe',
+          street: '22 Main St',
+          city: 'Austin',
+          zip: '78701',
+        },
       },
     ]);
 

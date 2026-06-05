@@ -25,6 +25,15 @@ import {
 
 const stubModel = {} as LanguageModel;
 
+// A `decide` node's `decide` callback is typed optional on the union; narrow it for
+// the unit assertions below without an unchecked non-null assertion.
+function requireDecide<F extends (...args: never[]) => unknown>(node: { decide?: F }): F {
+  if (!node.decide) {
+    throw new Error('expected a decide node with a decide() function');
+  }
+  return node.decide;
+}
+
 afterEach(() => {
   mock.restore();
 });
@@ -180,7 +189,7 @@ describe('booking_example', () => {
     };
 
     const transition = await Promise.resolve(
-      pickSlot.decide({ choice: '19:00' }, state),
+      requireDecide(pickSlot)({ choice: '19:00' }, state),
     );
     const target =
       typeof transition === 'object' && transition !== null && 'id' in transition
@@ -249,12 +258,12 @@ describe('booking_example', () => {
       availableSlots: ['18:30', '19:00', '20:15'],
     };
 
-    expect(pickSlot.decide({ choice: 'not-a-slot' }, state)).toBe('stay');
-    expect(confirm.decide({ choice: '19:00' }, { ...state, confirmedTime: '19:00' })).toBe(
-      'stay',
-    );
+    expect(requireDecide(pickSlot)({ choice: 'not-a-slot' }, state)).toBe('stay');
+    expect(
+      requireDecide(confirm)({ choice: '19:00' }, { ...state, confirmedTime: '19:00' }),
+    ).toBe('stay');
     const changeTransition = await Promise.resolve(
-      confirm.decide({ choice: 'no' }, { ...state, confirmedTime: '19:00' }),
+      requireDecide(confirm)({ choice: 'no' }, { ...state, confirmedTime: '19:00' }),
     );
     expect(changeTransition).toBe(collectDetails);
 
