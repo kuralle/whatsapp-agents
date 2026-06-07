@@ -8,10 +8,10 @@
         "@ai-sdk/google": "^3.0.0",
         "@ai-sdk/openai": "^3.0.0",
         "@ai-sdk/xai": "^3.0.0",
-        "@kuralle-agents/core": "^0.5.0",
-        "@kuralle-agents/engagement": "^0.5.0",
-        "@kuralle-agents/messaging": "^0.5.0",
-        "@kuralle-agents/messaging-meta": "^0.5.0",
+        "@kuralle-agents/core": "^0.6.0",
+        "@kuralle-agents/engagement": "^0.6.0",
+        "@kuralle-agents/messaging": "^0.6.0",
+        "@kuralle-agents/messaging-meta": "^0.6.0",
         "ai": "^6.0.0",
         "zod": "^3.23.0",
       },
@@ -37,15 +37,15 @@
 
     "@ai-sdk/xai": ["@ai-sdk/xai@3.0.93", "", { "dependencies": { "@ai-sdk/openai-compatible": "2.0.48", "@ai-sdk/provider": "3.0.10", "@ai-sdk/provider-utils": "4.0.27" }, "peerDependencies": { "zod": "^3.25.76 || ^4.1.8" } }, "sha512-HxazLIcSTgI0UQoq6ua0rcSR8+eXuNy0Qh4jkCY9EAWedYn6CQ0XD/j34U4/JYtO738xJdY+tE95okdqWqXkHA=="],
 
-    "@kuralle-agents/core": ["@kuralle-agents/core@0.5.0", "", { "dependencies": { "chrono-node": "^2.6.0", "zod-to-json-schema": "^3.24.0" }, "peerDependencies": { "ai": "^6.0.0", "zod": "^3.0.0" } }, "sha512-n1zCIOA3hBMSL64P0/7v6qivNwutQSHCVP3XVOzjOTT11nrUQX13iqybR0nGlCiuvtFJHF/a9RRphTuAk6DENw=="],
+    "@kuralle-agents/core": ["@kuralle-agents/core@0.6.0", "", { "dependencies": { "chrono-node": "^2.6.0", "zod-to-json-schema": "^3.24.0" }, "peerDependencies": { "ai": "^6.0.0", "zod": "^3.0.0" } }, "sha512-RJWvdHFYEzy+LYfFpzIPkrY/nYrk/zjCqNTiOk1N9Mf/QV7uxYBSapfAfMbJZhvyv5wlQYukPKB52doyYFNiHA=="],
 
-    "@kuralle-agents/engagement": ["@kuralle-agents/engagement@0.5.0", "", { "dependencies": { "@kuralle-agents/core": "0.5.0", "@kuralle-agents/messaging": "0.5.0", "@kuralle-agents/messaging-meta": "0.5.0", "ai": "^6.0.0", "zod": "^3.24.2" } }, "sha512-w5yIbxVUVTCOTbha29nd2OwUkcRo5WDrdkzyAAMMHXhTJOP7cQJJyqpqjgFs5qsbbS22cgKsB+zySgdDIm6gaw=="],
+    "@kuralle-agents/engagement": ["@kuralle-agents/engagement@0.6.0", "", { "dependencies": { "@kuralle-agents/core": "0.6.0", "@kuralle-agents/messaging": "0.6.0", "@kuralle-agents/messaging-meta": "0.6.0", "ai": "^6.0.0", "zod": "^3.24.2" } }, "sha512-BahWFZdEPLmlangz8FTbVHIyqI63uo7fE1fUEJqiQfnTjDpN8GNVNqScCaJxc1h3TM/aYTOfekdb8eUMVkWZFg=="],
 
-    "@kuralle-agents/http-client": ["@kuralle-agents/http-client@0.5.0", "", {}, "sha512-RwuQSD1wqafQ5l5zrHaucyv0WTTKhISNm/fYBzHbB8gia5ILgnNbNbKSxKf84UrpMQsYTmeCbNtdKFbin9988A=="],
+    "@kuralle-agents/http-client": ["@kuralle-agents/http-client@0.6.0", "", {}, "sha512-9Q39w8s9CxW3INEkmDeblQf2BMIXMZrZqrY1BeSxVPkxWt6e/ifftbf8gyxlgQ12PZnftKYoQOMTwZGzvGkQ/g=="],
 
-    "@kuralle-agents/messaging": ["@kuralle-agents/messaging@0.5.0", "", { "dependencies": { "@kuralle-agents/core": "0.5.0", "hono": "^4.7.4" } }, "sha512-j/fHsys8gd8Nj7lX3+as8Z8YZVrEU3DsEim3X0/rBIoOYos6hVOUjMX7PZBV7RVliHxujzQGj3Xg0ZqAzjjKCw=="],
+    "@kuralle-agents/messaging": ["@kuralle-agents/messaging@0.6.0", "", { "dependencies": { "@kuralle-agents/core": "0.6.0", "hono": "^4.7.4" } }, "sha512-khpZXiJExepZbBEzy7QC21M8aA61yirg4hpR5azvS8hp8Ffz9ZCrDUcM9g7vs9bda/NKFTJ1qxwUJ9/E+Hf02A=="],
 
-    "@kuralle-agents/messaging-meta": ["@kuralle-agents/messaging-meta@0.5.0", "", { "dependencies": { "@kuralle-agents/http-client": "0.5.0", "@kuralle-agents/messaging": "0.5.0" }, "peerDependencies": { "hono": "^4.12.0" } }, "sha512-dAByTRXXNv6i3FiWH/5+Kr4RfziRGNIW3Kba/WYPfEUnKKTq+PO64MUpf8xVBE/IWBVAqlKTVyD1nKwQThkLGg=="],
+    "@kuralle-agents/messaging-meta": ["@kuralle-agents/messaging-meta@0.6.0", "", { "dependencies": { "@kuralle-agents/http-client": "0.6.0", "@kuralle-agents/messaging": "0.6.0" }, "peerDependencies": { "hono": "^4.12.0" } }, "sha512-Mov8leW1g5ySvL2key1jvGClSNqFH6tdyU73GpOvHB3D+OfxsGCUisp/GZNam4DdAyNbIOfzT85HAp5kzzmkug=="],
 
     "@opentelemetry/api": ["@opentelemetry/api@1.9.1", "", {}, "sha512-gLyJlPHPZYdAk1JENA9LeHejZe1Ti77/pTeFm/nMXmQH/HFZlcS/O2XJB+L8fkbrNSqhdtlvjBVjxwUYanNH5Q=="],
 
